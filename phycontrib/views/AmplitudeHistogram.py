@@ -1,4 +1,5 @@
 """AmplitudeHistogram view plugin.
+plugin version from github user:  LBHB
 
 This plugin adds a matplotlib view showing amplitude histograms for
 the selected clusters. The percentage of undetected spikes for selected
@@ -39,7 +40,7 @@ class AmplitudeHistogram(IPlugin):
         ax = f.add_axes([0.15, 0.1, 0.78, 0.87])
         rect = f.patch
         rect.set_facecolor('k')
-        ax.set_axis_bgcolor('k')
+        ax.set_axis_bgcolor('y')
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.yaxis.set_ticks_position('left')
@@ -60,6 +61,7 @@ class AmplitudeHistogram(IPlugin):
             colors = _spike_colors(np.arange(len(clusters)))
             maxs = np.zeros(len(clusters))
             was_fit = np.zeros(len(clusters), dtype=bool)
+            percent_missing_ndtr = np.zeros(len(clusters), dtype=float)
             for i in range(len(clusters)):
                 #plot the amplitude histogram
                 coords = controller._get_amplitudes(clusters[i])
@@ -97,18 +99,18 @@ class AmplitudeHistogram(IPlugin):
                           np.percentile(coords.y, 1))
                     try:
                         popt, pcov = curve_fit(gaussian_cut, x, num, p0=p0,
-                                               maxfev=10000)
+                                               maxfev=100000)
                         was_fit[i] = True
                     except Exception as e:
-                        try:
-                            logger.info("Fitting failed with maxfev=10000"
-                                        ", trying maxfev=1000000")
-                            popt, pcov = curve_fit(gaussian_cut, x, num,
-                                                   p0=p0, maxfev=1000000)
-                            was_fit[i] = True
-                        except Exception as e:
-                            logger.info("Fitting error: %s", str(e))
-                            was_fit[i] = False
+#                        try:
+#                            logger.info("Fitting failed with maxfev=10000"
+#                                        ", trying maxfev=1000000")
+#                            popt, pcov = curve_fit(gaussian_cut, x, num,
+#                                                   p0=p0, maxfev=1000000)
+#                            was_fit[i] = True
+#                        except Exception as e:
+#                        logger.info("Fitting error: %s", e)
+                        was_fit[i] = False
                     if was_fit[i]:
                         n_fit = gaussian_cut(x, popt[0], popt[1],
                                              popt[2], popt[3])
@@ -122,13 +124,27 @@ class AmplitudeHistogram(IPlugin):
                     # norm area calculated by fit parameters
                     norm_area_ndtr = ndtr((popt[1] - min_amplitude) /
                                           popt[2])
-                    percent_missing_ndtr = 100 * (1 - norm_area_ndtr)
+                    percent_missing_ndtr[i] = 100 * (1 - norm_area_ndtr)
 
                     logger.debug('Cluster %d is missing %.1f of spikes',
-                                 clusters[i], percent_missing_ndtr)
+                                 clusters[i], percent_missing_ndtr[i])
 
             if any(was_fit):
                 ax.set_xlim([0, maxs.max() * 1.3])
+                offset = 0
+                r = f.canvas.get_renderer()
+                for i in range(len(clusters)):
+                    if was_fit[i]:
+                        str = '{:.1f}%'.format(percent_missing_ndtr[i])
+                    else:
+                        str = 'NaN'
+                    t = ax.text(maxs.max() * .01 + offset, ax.get_ylim()[1],
+                                str,
+                                color=np.append(colors[i][:3], 1), fontsize=12,
+                                verticalalignment='top')
+                    ext = t.get_window_extent(r)
+                    offset = ext.transformed(ax.transData.inverted()).x1
+                    offset = offset + maxs.max() * .02
             xt = ax.get_xticks()
             ax.set_xticks((xt[0], xt[-1]))
             f.canvas.draw()

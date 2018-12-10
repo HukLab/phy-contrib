@@ -172,7 +172,10 @@ class TemplateModel(object):
 
     def __init__(self, dat_path=None, **kwargs):
         dat_path = dat_path or ''
-        dir_path = (op.dirname(op.abspath(op.expanduser(dat_path)))
+        # Make sure dir_path points to same dir as params.py, and doesn't get stuck wherever the dat_path directory happens to live.
+        # NOTE:  your params.py file must have a self referential variable defined as:
+        #       dir_path = './'
+        dir_path = (op.dirname(op.abspath(op.expanduser(dir_path)))
                     if dat_path else os.getcwd())
         self.dat_path = dat_path
         self.dir_path = dir_path
