@@ -40,7 +40,7 @@ class AmplitudeHistogram(IPlugin):
         ax = f.add_axes([0.15, 0.1, 0.78, 0.87])
         rect = f.patch
         rect.set_facecolor('k')
-        ax.set_axis_bgcolor('k')
+        ax.set_facecolor('k') # set_axis_bgcolor('k')
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.yaxis.set_ticks_position('left')
